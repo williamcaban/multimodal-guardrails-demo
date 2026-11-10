@@ -264,7 +264,7 @@ error, its text says what to check (service missing, credentials rejected, TLS, 
 - *Use a different model:* set `MODEL_NAME` and `MODEL_BASE_URL`. The judge and the protected
   model are the same entry today; to split them, give `main` and the `vision_*` entries
   different values in `rhoai/render_configs.py`. For a thinking model keep `max_tokens: 3000`
-  (gotcha 3 below) or the rail fails closed.
+  ([gotcha 3](docs/GOTCHAS.md)) or the rail fails closed.
 - *Add a rail or a config:* add a policy under `config/`, a builder in `render_configs.py`, a
   `nemoConfigs` entry in `rhoai/k8s/20-nemo-guardrails.yaml`, and expose it in the UI: `MODES` in
   `ui/mmdemo/samples.py`, a radio in `ui/static/index.html` and a title in `app.js`.
@@ -404,55 +404,36 @@ The Instruct model does not think, so a call takes about 1-3 s (local thinking q
 and `max_tokens: 3000` is headroom, not a need. When the PII rail blocks, the injection rail
 does not run, so only one verdict is shown. 15/16 on a small synthetic set: a demo, not a benchmark.
 
-## Gotchas found while building this
+## Gotchas
 
-1. **Keep the judge's user message a bare `"{{ user_input }}"`.** The library only
-   preserves the image when the whole message is a single variable; embedding it
-   in other text stringifies it and the judge never sees the image.
-2. **The main model does not see images by default.** The built-in `general` prompt
-   uses `user_assistant_sequence`, which turns images into the text `[+ image]`.
-   `prompts.yml` overrides `general` with `{{ history | to_chat_messages }}`.
-   (The tutorial's "safe image reasoning" step does not work without this.)
-3. **Thinking models + small `max_tokens` fail closed silently.** qwen3-vl used ~1360
-   tokens on a trivial yes/no question. With `max_tokens: 200` it returned empty
-   content and the rail blocked everything, so correct-looking BLOCKs were not
-   detections. Use `max_tokens: 3000`; watch for
-   `LLM returned empty content with finish_reason='length'`.
-4. **You cannot turn thinking off through Ollama's `/v1` endpoint.** `reasoning_effort`
-   (none/low), top-level `think: false`, and `reasoning: {effort: none}` were all
-   ignored (identical token counts, reasoning still returned). NeMo forwards extra
-   `parameters:` keys into the request body unchanged, so sending them is harmless,
-   just ineffective here. Options: a non-thinking tag such as `qwen3-vl:8b-instruct`
-   (listed on ollama.com; not yet tested here), or keep thinking and pay the latency.
-5. **`rails.explain()` accumulates across requests.** Index from the call count
-   before each request, not `llm_calls[0]`.
-6. Prompt wording matters: without "only legible values count; labels and
-   blacked-out fields are not PII", gemma3 flagged field labels.
-7. Prompt-injection judges need a "who is it addressed to" rule, otherwise a recipe
-   or a textbook code listing looks like instructions. (Both models handled these
-   benign controls correctly; gemma3 still printed a stray `safe I3`.)
+Eight things that silently break image handling or the verdicts, each with the symptom and the
+fix: [docs/GOTCHAS.md](docs/GOTCHAS.md). The ones most likely to bite:
 
-8. **The judge sees the user's text too, so "unrelated to the user's request" is a trap.**
-   With the UI's default message "Process this document and respond.", the original I3
-   ("a task unrelated to the user's request") let the Fibonacci image through 3/3: writing code
-   looked related to "process this document". I3 now says a generic request never authorizes
-   tasks written inside the image, and the prompt says the user's text never makes an
-   in-image instruction safe. After the change: 27/27 (5 injection + 4 benign images x 3 user
-   messages), and the Fibonacci image blocked 6/6 with both rails on.
+- The judge prompt's user message must be a bare `"{{ user_input }}"`, or the image is dropped.
+- The default `general` prompt turns images into `[+ image]`; override it so the main model sees them.
+- Thinking models with a small `max_tokens` fail closed, so blocks look right for the wrong reason.
+- The judge also sees the user's text, so "a task unrelated to the user's request" lets injections through.
 
 ## Limits and next steps
 
 - Input rail only. Add an output rail if the main model could echo PII from an
   allowed image (the badge miss above shows this happening).
-- Run both rails together by defining two `models:` entries with different
-  `$model=` names, at the cost of two judge calls per request. Not tested.
+- Running both rails together costs two judge calls per request: the `pii-and-injection`
+  configuration defines two `models:` entries with different `$model=` names (see the
+  RHOAI section).
 - VLM judges are probabilistic. For PII, consider two stages: VLM transcription, then
   deterministic detection (Presidio/regex) on the text.
-- Not tested: Llama Guard vision, NIM endpoints, GPT-4o, `qwen3-vl:8b-instruct`.
+- Not tested: Llama Guard vision, NIM endpoints, GPT-4o, or the `qwen3-vl:8b-instruct` Ollama
+  tag. (Qwen3-VL-8B-Instruct was tested on vLLM; see the RHOAI results.)
 
-## Licence and disclaimer
+## License
 
-Apache License 2.0, see [LICENSE](LICENSE). This is a personal demo, not an official Red Hat or
-NVIDIA product or recommendation. All sample images contain fabricated data only. Guardrail
-verdicts come from a language model and can be wrong; do not rely on this for real PII or
-safety enforcement without your own evaluation.
+Apache License 2.0. See [LICENSE](LICENSE).
+
+## Disclaimer
+
+This is a personal demo, not an official Red Hat or NVIDIA product or recommendation.
+
+- All sample images contain fabricated data only.
+- Guardrail verdicts come from a language model and can be wrong. Do not rely on this for real
+  PII or safety enforcement without your own evaluation.
