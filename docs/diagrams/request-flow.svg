@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 70 1280 470" width="1280" height="470" font-family="'Red Hat Text', 'Red Hat Display', Helvetica, Arial, sans-serif">
+  <title>Request flow through the vision-judge input rails</title>
+  <desc>A user message with text and an image goes to a PII judge, then to a prompt-injection judge, both inside the NeMo Guardrails input rails. If both say safe, the main model answers and sees the image. If either says unsafe, the request stops with a refusal message.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4d4d4d"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a30d05"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="70" width="1280" height="470" fill="#ffffff"/>
+
+  <!-- Input rails container -->
+  <rect x="290" y="90" width="520" height="250" rx="14" fill="#f5f7fa" stroke="#8a8d90" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="312" y="124" font-size="17" font-weight="700" fill="#4d4d4d">NeMo Guardrails: input rails</text>
+
+  <!-- User message -->
+  <rect x="30" y="160" width="200" height="110" rx="10" fill="#f0f0f0" stroke="#6a6e73" stroke-width="2"/>
+  <text x="130" y="205" font-size="19" font-weight="700" text-anchor="middle" fill="#151515">User message</text>
+  <text x="130" y="233" font-size="16" text-anchor="middle" fill="#151515">text + image</text>
+
+  <!-- PII judge -->
+  <rect x="320" y="160" width="190" height="110" rx="10" fill="#e7f1fa" stroke="#2b6cb0" stroke-width="2"/>
+  <text x="415" y="196" font-size="19" font-weight="700" text-anchor="middle" fill="#151515">PII judge</text>
+  <text x="415" y="224" font-size="15" text-anchor="middle" fill="#151515">vision model +</text>
+  <text x="415" y="246" font-size="15" text-anchor="middle" fill="#151515">PII policy (P1-P7)</text>
+
+  <!-- Injection judge -->
+  <rect x="590" y="160" width="190" height="110" rx="10" fill="#e7f1fa" stroke="#2b6cb0" stroke-width="2"/>
+  <text x="685" y="196" font-size="19" font-weight="700" text-anchor="middle" fill="#151515">Injection judge</text>
+  <text x="685" y="224" font-size="15" text-anchor="middle" fill="#151515">vision model +</text>
+  <text x="685" y="246" font-size="15" text-anchor="middle" fill="#151515">injection policy (I1-I5)</text>
+
+  <!-- Main model -->
+  <rect x="880" y="160" width="170" height="110" rx="10" fill="#eaf5ea" stroke="#3e8635" stroke-width="2"/>
+  <text x="965" y="205" font-size="19" font-weight="700" text-anchor="middle" fill="#151515">Main model</text>
+  <text x="965" y="233" font-size="16" text-anchor="middle" fill="#151515">sees the image</text>
+
+  <!-- Answer -->
+  <rect x="1090" y="160" width="150" height="110" rx="10" fill="#eaf5ea" stroke="#3e8635" stroke-width="2"/>
+  <text x="1165" y="221" font-size="19" font-weight="700" text-anchor="middle" fill="#151515">Answer</text>
+
+  <!-- Refusal -->
+  <rect x="320" y="420" width="460" height="100" rx="10" fill="#fdeaea" stroke="#a30d05" stroke-width="2"/>
+  <text x="550" y="458" font-size="19" font-weight="700" text-anchor="middle" fill="#151515">Request stops</text>
+  <text x="550" y="490" font-size="16" text-anchor="middle" fill="#151515">"I'm sorry, I can't respond to that."</text>
+
+  <!-- Safe path arrows -->
+  <line x1="232" y1="215" x2="318" y2="215" stroke="#4d4d4d" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="512" y1="215" x2="588" y2="215" stroke="#4d4d4d" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="550" y="196" font-size="15" font-weight="700" text-anchor="middle" fill="#3e8635">safe</text>
+  <line x1="782" y1="215" x2="878" y2="215" stroke="#4d4d4d" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="831" y="196" font-size="15" font-weight="700" text-anchor="middle" fill="#3e8635">safe</text>
+  <line x1="1052" y1="215" x2="1088" y2="215" stroke="#4d4d4d" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Unsafe path arrows -->
+  <line x1="415" y1="272" x2="415" y2="418" stroke="#a30d05" stroke-width="2.5" marker-end="url(#arrow-red)"/>
+  <text x="428" y="372" font-size="15" font-weight="700" fill="#a30d05">unsafe</text>
+  <line x1="685" y1="272" x2="685" y2="418" stroke="#a30d05" stroke-width="2.5" marker-end="url(#arrow-red)"/>
+  <text x="698" y="372" font-size="15" font-weight="700" fill="#a30d05">unsafe</text>
+</svg>
