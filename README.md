@@ -1,13 +1,21 @@
 # Multimodal guardrails with NeMo Guardrails + open-weight vision models
 
 Two image guardrails built on the NVIDIA tutorial
-[Add Multimodal Content Safety Using a Vision Model](https://docs.nvidia.com/nemo/guardrails/get-started/tutorials/multimodal),
-run fully local on Ollama:
+[Add Multimodal Content Safety Using a Vision Model](https://docs.nvidia.com/nemo/guardrails/get-started/tutorials/multimodal):
 
 | config | blocks | example images |
 |---|---|---|
 | `config/pii_vision` | PII in images | invoice, check, healthcare form, employee badge, driver license |
 | `config/injection_vision` | text in an image that instructs the AI | "ignore previous instructions", "generate Fibonacci code", hidden/faint text |
+
+You can run them two ways:
+
+| | [Run on your machine](#run-on-your-machine-ollama-command-line) | [Run on Red Hat OpenShift AI](#run-on-red-hat-openshift-ai-vllm-web-ui) |
+|---|---|---|
+| Model server | Ollama (`qwen3-vl:8b`, `gemma3`) | vLLM (tested with Qwen3-VL-8B-Instruct behind MaaS) |
+| Guardrails engine | the `nemoguardrails` Python library, in-process | the RHOAI NeMo Guardrails operator (`NemoGuardrails` CR) |
+| Interface | command line (`demo.py`) | web UI, unprotected vs protected side by side |
+| You need | Python 3.12, Ollama | an OpenShift AI cluster, `oc`, a vision model endpoint and its API key |
 
 ## How it works
 
@@ -22,7 +30,10 @@ user message (text + image) -> input rail: "content safety check input $model=vi
 The "vision rail" is the stock LLM-as-judge content-safety flow. Only the policy
 prompt (`config/*/prompts.yml`) is custom. No new Python actions.
 
-## Run
+## Run on your machine (Ollama, command line)
+
+No cluster needed. The guardrails run in-process in the `nemoguardrails` library and call a local
+Ollama model as both the judge and the model being protected.
 
 ```bash
 uv venv --python 3.12 .venv && source .venv/bin/activate
@@ -36,13 +47,16 @@ python demo.py --config injection_vision  --baseline   # NO rails: does the atta
 python demo.py --prompt "Describe this image." ...     # override the user text
 ```
 
-To use a hosted endpoint, change `base_url`/`model`/`api_key` under `models:` in
-`config/*/config.yml`.
+To use a hosted endpoint instead of Ollama, change `base_url`/`model`/`api_key` under `models:`
+in `config/*/config.yml`. For a cluster deployment, use the next section.
 
-## Run on Red Hat OpenShift AI (web UI)
+## Run on Red Hat OpenShift AI (vLLM, web UI)
 
 The same guardrails, served by the RHOAI NeMo Guardrails operator, with a small web UI that
-sends a sample image through the unprotected model and a guardrail side by side. Everything
+sends a sample image through the unprotected model and a guardrail side by side. The model is
+served by vLLM (on the tested cluster, Qwen3-VL-8B-Instruct as an `LLMInferenceService` behind
+MaaS). NeMo only needs an OpenAI-compatible vision endpoint, so another vLLM-served model should
+work, but only that one was tested. Everything
 lives in one namespace (`mm-guardrails-demo`), except one cluster-scoped ClusterRoleBinding that
 the operator creates for the NeMo server (see "Remove, reset and uninstall").
 
