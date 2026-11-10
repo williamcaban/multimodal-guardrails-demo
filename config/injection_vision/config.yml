@@ -1,0 +1,24 @@
+# Image prompt-injection guardrail: a VLM judge flags text inside an image that
+# tries to instruct the AI. Same wiring as pii_vision; only prompts.yml differs.
+models:
+  - type: main
+    engine: openai
+    model: gemma3:latest
+    parameters:
+      base_url: http://localhost:11434/v1
+      api_key: ollama
+
+  - type: vision_rails
+    engine: openai
+    model: gemma3:latest
+    parameters:
+      base_url: http://localhost:11434/v1
+      api_key: ollama
+
+rails:
+  input:
+    flows:
+      - content safety check input $model=vision_rails
+  dialog:
+    single_call:
+      enabled: False

@@ -1,0 +1,128 @@
+# Web UI: ServiceAccount (identity used to call NeMo), build, Deployment, Service, Route.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mm-ui
+  namespace: __NAMESPACE__
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mm-ui-view
+  namespace: __NAMESPACE__
+subjects:
+  - kind: ServiceAccount
+    name: mm-ui
+    namespace: __NAMESPACE__
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: mm-ui
+  namespace: __NAMESPACE__
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: mm-ui
+  namespace: __NAMESPACE__
+spec:
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: mm-ui:latest
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mm-ui
+  namespace: __NAMESPACE__
+  labels:
+    app: mm-ui
+    app.kubernetes.io/part-of: mm-guardrails-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mm-ui
+  template:
+    metadata:
+      labels:
+        app: mm-ui
+    spec:
+      serviceAccountName: mm-ui
+      containers:
+        - name: ui
+          image: image-registry.openshift-image-registry.svc:5000/__NAMESPACE__/mm-ui:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: NEMO_URL
+              value: https://mm-guardrails.__NAMESPACE__.svc.cluster.local
+            - name: MODEL_NAME
+              value: qwen3-vl-8b
+            # The demo model is shared and the Route is reachable from outside the cluster:
+            # fixed sample images only, short prompts, capped output, global request cap.
+            - name: ALLOW_UPLOAD
+              value: "false"
+            - name: MAX_PROMPT_CHARS
+              value: "300"
+            - name: MAX_TOKENS
+              value: "300"
+            - name: RATE_LIMIT_PER_MIN
+              value: "30"
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 20m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities: {drop: [ALL]}
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mm-ui
+  namespace: __NAMESPACE__
+spec:
+  selector:
+    app: mm-ui
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: mm-ui
+  namespace: __NAMESPACE__
+spec:
+  to:
+    kind: Service
+    name: mm-ui
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

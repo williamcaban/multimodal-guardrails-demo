@@ -1,0 +1,17 @@
+# Web UI for the multimodal guardrails demo. The app uses only the Python standard library, so
+# there is nothing to `pip install`; add packages here with pip if that ever changes.
+# Build context is the staging directory made by rhoai/deploy.sh (ui/mmdemo, ui/static, samples/).
+FROM registry.redhat.io/ubi9/python-312:latest
+
+WORKDIR /opt/app-root/src
+COPY ui/ ./ui/
+COPY samples/ ./samples/
+
+ENV PYTHONPATH=/opt/app-root/src/ui \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
+
+EXPOSE 8080
+USER 1001
+CMD ["python", "-m", "mmdemo.server"]

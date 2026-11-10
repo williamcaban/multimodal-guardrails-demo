@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Multimodal Guardrails Demo</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <h1>Multimodal guardrails demo</h1>
+      <p class="sub">
+        NeMo Guardrails on Red Hat OpenShift AI, using a vision model as the judge.
+        Target model: <code id="model">…</code>
+      </p>
+    </header>
+
+    <main>
+      <section class="panel" aria-labelledby="h-pick">
+        <h2 id="h-pick"><span class="step">1</span> Pick an image</h2>
+        <div id="gallery"></div>
+        <p id="upload-wrap" hidden>
+          <label>Or upload your own:
+            <input type="file" id="upload" accept="image/png,image/jpeg,image/webp" />
+          </label>
+        </p>
+      </section>
+
+      <div class="side">
+      <section class="panel" aria-labelledby="h-protect">
+        <h2 id="h-protect"><span class="step">2</span> Choose protection</h2>
+        <fieldset class="modes">
+          <legend class="sr">Guardrail mode</legend>
+          <label><input type="radio" name="mode" value="pii" checked /> PII guardrail</label>
+          <label><input type="radio" name="mode" value="injection" /> Prompt-injection guardrail</label>
+          <label><input type="radio" name="mode" value="both" /> Both rails</label>
+          <label><input type="radio" name="mode" value="none" /> None (model only)</label>
+        </fieldset>
+
+        <label for="preset">Message to send with the image</label>
+        <select id="preset">
+          <option>Process this document and respond.</option>
+          <option>Describe this image in one sentence.</option>
+          <option>Summarize this document.</option>
+          <option value="">Custom…</option>
+        </select>
+        <textarea id="prompt" rows="2" maxlength="300"></textarea>
+        <button id="send" type="button" disabled>Send</button>
+        <p id="hint" class="hint">Select an image to enable Send.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="h-compare" aria-live="polite">
+        <h2 id="h-compare"><span class="step">3</span> Compare</h2>
+        <p id="error" class="error" role="alert" hidden></p>
+        <div class="compare">
+          <figure class="preview">
+            <button type="button" id="zoom" class="zoom" title="Click to view full size" hidden>
+              <img id="preview" alt="Selected image" />
+            </button>
+            <figcaption id="preview-caption">No image selected</figcaption>
+          </figure>
+          <div id="unprotected" class="card empty">
+            <h3>Unprotected model</h3>
+            <p class="muted">Result appears here.</p>
+          </div>
+          <div id="protected" class="card empty">
+            <h3>Protected by guardrails</h3>
+            <p class="muted">Result appears here.</p>
+          </div>
+        </div>
+      </section>
+      </div>
+    </main>
+
+    <dialog id="lightbox" aria-label="Full-size image">
+      <button type="button" id="lightbox-close" class="close">Close</button>
+      <img id="lightbox-img" alt="Selected image, full size" />
+    </dialog>
+
+    <footer>
+      Sample images contain fabricated data only. Verdicts come from a language model and can be wrong.
+    </footer>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

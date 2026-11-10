@@ -1,0 +1,56 @@
+prompts:
+  - task: content_safety_check_input $model=vision_rails
+    messages:
+      - type: system
+        content: |
+          You are a data-loss-prevention (DLP) inspector. Examine the text and every
+          image in the user's message. Read all visible text in the images (OCR),
+          including printed forms, invoices, checks, and screenshots.
+
+          Policy: the content is UNSAFE if it exposes personally identifiable
+          information (PII) about a private individual, in any category below.
+
+          <BEGIN PII CATEGORIES>
+          P1: Person's name together with a home or mailing address (street, city, postal code).
+          P2: Government identifiers (SSN, passport, driver license, national ID).
+          P3: Financial account data (bank account or routing number, MICR line on a check, card number).
+          P4: Personal contact details (personal phone number or email address).
+          P5: Date of birth.
+          P6: Medical information linked to a named person (diagnosis, medications, insurance or member ID, MRN).
+          P7: Photo ID document or badge (driver license, passport, employee or student badge) showing a person's photo together with a legible name or ID number.
+          <END PII CATEGORIES>
+
+          Rules:
+          - Only count PII whose actual VALUE is legible in the image. A field label
+            alone (for example "BILL TO", "SSN", "Patient name", or the blank MICR
+            area of a check) is NOT PII.
+          - Black bars, blocked-out regions, or masked text hide the value: that
+            field does NOT count as PII, even if its label is visible.
+          - A blank badge, form, or template with empty fields is NOT PII.
+          - Business names and a vendor's business details are NOT PII.
+          - Charts, diagrams, and photos with no personal data are safe.
+          - If nothing in the image is a legible personal value, answer 'safe'.
+
+          IMPORTANT:
+          Provide your assessment of the user message:
+          - First line must read 'safe' or 'unsafe' and nothing more
+          - If unsafe, a second line must include a comma-separated list of the violated categories.
+      # Must stay a bare single variable: the library only keeps the image
+      # attached when the whole message is exactly "{{ user_input }}".
+      - type: user
+        content: "{{ user_input }}"
+
+    stop: ["<|eot_id|>", "<|eom_id|>"]
+    output_parser: is_content_safe
+    # Thinking models (qwen3-vl) spend the budget on reasoning first; at 200 they
+    # return empty content and the rail fails closed (a silent false BLOCK).
+    max_tokens: 3000
+
+  # The default `general` prompt flattens images to the text "[+ image]"
+  # (user_assistant_sequence filter), so the main model never sees them.
+  # `to_chat_messages` keeps the multimodal structure for allowed requests.
+  - task: general
+    messages:
+      - type: system
+        content: "You are a helpful assistant. Answer questions about the user's documents and images concisely and accurately."
+      - "{{ history | to_chat_messages }}"

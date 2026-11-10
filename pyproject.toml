@@ -1,0 +1,57 @@
+[project]
+name = "multimodal-guardrails-demo"
+version = "0.1.0"
+license = "Apache-2.0"
+description = "NeMo Guardrails vision-model demo (PII + prompt injection in images) with a web UI for RHOAI"
+requires-python = ">=3.12"
+# The web UI runs on the standard library only. Local-development packages (nemoguardrails,
+# pillow, httpx, pyyaml and the lint/test tools) are listed in README.md; this project is not
+# built or installed as a package.
+dependencies = []
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "S"]
+ignore = [
+    "S101",  # asserts are fine in tests
+    "S310",  # urllib on URLs from our own settings, not user input
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S"]
+"demo.py" = ["S"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+exclude = [".venv"]
+mypy_path = "ui"
+
+[[tool.mypy.overrides]]
+module = ["nemoguardrails.*", "PIL.*"]
+ignore_missing_imports = true
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["ui", "rhoai", "tests"]
+pythonVersion = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["ui", "rhoai", "tests"]
+markers = ["live: needs a running NeMo Guardrails server (set NEMO_URL); skipped otherwise"]
+
+[tool.vulture]
+paths = ["ui", "rhoai", "tests", "demo.py", "make_samples.py"]
+min_confidence = 80
+# `format` is the parameter name BaseHTTPRequestHandler.log_message uses; the override must match.
+ignore_names = ["format"]

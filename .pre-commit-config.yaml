@@ -1,0 +1,10 @@
+# Runs the same gate as CI would: ruff, black --check, mypy (strict), vulture, pytest.
+# Needs the .venv described in the README (the script activates nothing itself).
+repos:
+  - repo: local
+    hooks:
+      - id: quality-gate
+        name: quality gate (ruff, black, mypy, vulture, pytest)
+        entry: scripts/check.sh
+        language: system
+        pass_filenames: false

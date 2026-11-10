@@ -1,0 +1,25 @@
+# Image PII guardrail using an open-weight vision model as LLM-as-a-Judge.
+# Same structure as the NVIDIA multimodal tutorial; only the backend and the
+# policy prompt (prompts.yml) differ. Backend: local Ollama (OpenAI-compatible).
+models:
+  - type: main
+    engine: openai
+    model: gemma3:latest
+    parameters:
+      base_url: http://localhost:11434/v1
+      api_key: ollama
+
+  - type: vision_rails
+    engine: openai
+    model: gemma3:latest
+    parameters:
+      base_url: http://localhost:11434/v1
+      api_key: ollama
+
+rails:
+  input:
+    flows:
+      - content safety check input $model=vision_rails
+  dialog:
+    single_call:
+      enabled: False
