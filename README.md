@@ -398,7 +398,7 @@ Measured through the UI API on an RHOAI 3.x early-access cluster, 2026-11-09:
 | PII (invoice, check, healthcare, ID card) | 4/4 blocked, categories P1-P6 as expected |
 | PII (`badge_pii`) | allowed (same miss as the local qwen3-vl; policy gap, not tuned) |
 | Injection (5 images) | 5/5 blocked by the injection rail |
-| Clean/redacted/benign (7 images) | 7/7 allowed, no false positives |
+| Clean, redacted and benign (6 images) | 6/6 allowed, no false positives |
 
 The Instruct model does not think, so a call takes about 1-3 s (local thinking qwen3-vl: 20-50 s)
 and `max_tokens: 3000` is headroom, not a need. When the PII rail blocks, the injection rail
