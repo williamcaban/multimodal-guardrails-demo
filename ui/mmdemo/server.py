@@ -1,6 +1,6 @@
 """HTTP server: serves the demo page and runs one image through NeMo Guardrails twice.
 
-For each request it calls the ``passthrough`` configuration (no rails, the "unprotected" model) and
+For each request it calls the ``no-rails`` configuration (no rails, the "unprotected" model) and
 the configuration for the selected guardrail mode, in parallel, so the page can show them side by
 side.
 """

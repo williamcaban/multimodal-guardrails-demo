@@ -61,7 +61,7 @@ ALLOWED_BODY: dict[str, Any] = {
 
 @dataclass
 class StubNemo:
-    """Records requests; ``passthrough`` gets an answer, every other config gets a block."""
+    """Records requests; ``no-rails`` gets an answer, every other config gets a block."""
 
     url: str
     requests: list[dict[str, Any]] = field(default_factory=list)

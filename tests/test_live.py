@@ -63,7 +63,7 @@ def test_clean_chart_is_allowed_and_answered(config_id: str) -> None:
     assert all(v.verdict == "safe" for v in result.verdicts), result
 
 
-def test_passthrough_runs_no_rails() -> None:
-    result = call_nemo(settings(), "passthrough", PROMPT, image("invoice_pii"))
+def test_no_rails_config_runs_no_rails() -> None:
+    result = call_nemo(settings(), "no-rails", PROMPT, image("invoice_pii"))
     assert result.status == "allowed", result
     assert result.verdicts == []

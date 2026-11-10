@@ -24,8 +24,8 @@ spec:
     - name: injection-vision
       configMaps: [mmg-injection-vision]
     # No rails: the "unprotected" side of the comparison in the UI.
-    - name: passthrough
-      configMaps: [mmg-passthrough]
+    - name: no-rails
+      configMaps: [mmg-no-rails]
   env:
     - name: MODEL_API_KEY
       valueFrom:

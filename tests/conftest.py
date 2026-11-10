@@ -25,9 +25,7 @@ def stub_nemo() -> Iterator[StubNemo]:
                 {"path": self.path, "body": body, "auth": self.headers.get("Authorization")}
             )
             config_id = body["guardrails"]["config_id"]
-            payload = json.dumps(
-                ALLOWED_BODY if config_id == "passthrough" else BLOCKED_BODY
-            ).encode()
+            payload = json.dumps(ALLOWED_BODY if config_id == "no-rails" else BLOCKED_BODY).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))

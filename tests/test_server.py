@@ -73,7 +73,7 @@ def test_protected_vs_unprotected(stub_nemo: StubNemo, start_ui: StartUi) -> Non
     assert data["protected"]["verdicts"][0]["categories"] == ["P1", "P3"]
 
     by_config = {r["body"]["guardrails"]["config_id"]: r["body"] for r in stub_nemo.requests}
-    assert set(by_config) == {"passthrough", "pii-vision"}
+    assert set(by_config) == {"no-rails", "pii-vision"}
     sent = by_config["pii-vision"]
     assert sent["model"] == "qwen3-vl-8b"
     image = sent["messages"][0]["content"][1]["image_url"]["url"]
@@ -88,7 +88,7 @@ def test_each_mode_maps_to_its_config(stub_nemo: StubNemo, start_ui: StartUi) ->
         stub_nemo.requests.clear()
         assert run(base, sample="chart_clean", mode=mode)[0] == 200
         assert {r["body"]["guardrails"]["config_id"] for r in stub_nemo.requests} == {
-            "passthrough",
+            "no-rails",
             config_id,
         }
 
@@ -100,7 +100,7 @@ def test_mode_none_only_calls_the_unprotected_config(
     status, data = run(base, sample="chart_clean", mode="none")
     assert status == 200
     assert data["protected"] is None
-    assert [r["body"]["guardrails"]["config_id"] for r in stub_nemo.requests] == ["passthrough"]
+    assert [r["body"]["guardrails"]["config_id"] for r in stub_nemo.requests] == ["no-rails"]
 
 
 def test_token_file_becomes_a_bearer_header(

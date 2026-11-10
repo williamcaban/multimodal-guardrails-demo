@@ -87,7 +87,7 @@ the operator creates for the NeMo server (see "Remove, reset and uninstall").
   |  |                                                                             |    |
   |  |  [kube-rbac-proxy]  checks the token (enable-auth) then forwards to         |    |
   |  |  [nemo-guardrails server]  which holds all four configurations:             |    |
-  |  |       passthrough | pii-vision | injection-vision | pii-and-injection (default)|   |
+  |  |       no-rails    | pii-vision | injection-vision | pii-and-injection (default)|   |
   |  |       each one mounted from its own ConfigMap  mmg-<config id>              |    |
   |  |  env MODEL_API_KEY <- Secret qwen3-vl-8b-maas-key (key: api-key)            |    |
   |  +-----------------------------------------------------------------------------+    |
@@ -101,7 +101,7 @@ the operator creates for the NeMo server (see "Remove, reset and uninstall").
 ```
 
 What a request does inside NeMo (config `pii-and-injection`; the single-rail configs run
-only their own judge, `passthrough` runs none):
+only their own judge, `no-rails` runs none):
 
 ```
   image + text
@@ -116,7 +116,7 @@ only their own judge, `passthrough` runs none):
   main model answers (it sees the image)
 ```
 
-The UI sends every request twice, in parallel: once to `passthrough` for the "Unprotected
+The UI sends every request twice, in parallel: once to `no-rails` for the "Unprotected
 model" card and once to the config chosen in step 2 for the "Protected" card. It also asks
 NeMo for `guardrails.options.log`, so the page can show which rail stopped the request and what
 the judge answered ("Why").
@@ -152,7 +152,7 @@ ConfigMap as its own configuration directory, and the config id is the entry's `
 
 | config id | ConfigMap | rails that run (`rails.input.flows`) | UI mode that uses it |
 |---|---|---|---|
-| `passthrough` | `mmg-passthrough` | none | the "Unprotected model" card, and mode "None" |
+| `no-rails` | `mmg-no-rails` | none | the "Unprotected model" card, and mode "None" |
 | `pii-vision` | `mmg-pii-vision` | `content safety check input $model=vision_pii` | "PII guardrail" |
 | `injection-vision` | `mmg-injection-vision` | `content safety check input $model=vision_injection` | "Prompt-injection guardrail" |
 | `pii-and-injection` (**default**) | `mmg-pii-and-injection` | both of the above, in that order | "Both rails" |

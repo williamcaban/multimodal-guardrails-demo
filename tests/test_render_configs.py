@@ -39,8 +39,8 @@ def test_flows_and_prompts_and_models_line_up(config_id: str) -> None:
     assert len(flows) == len(CONFIGS[config_id])
 
 
-def test_passthrough_has_no_rails() -> None:
-    config, _ = load("passthrough")
+def test_no_rails_config_has_no_rails() -> None:
+    config, _ = load("no-rails")
     assert "rails" not in config
     assert [m["type"] for m in config["models"]] == ["main"]
 

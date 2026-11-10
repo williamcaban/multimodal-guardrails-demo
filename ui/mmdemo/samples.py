@@ -101,7 +101,7 @@ SAMPLES: tuple[Sample, ...] = (
 SAMPLES_BY_ID: dict[str, Sample] = {s.id: s for s in SAMPLES}
 
 # UI mode -> NeMo config id (the directory name mounted by the operator).
-UNPROTECTED_CONFIG = "passthrough"
+UNPROTECTED_CONFIG = "no-rails"
 MODES: dict[str, str | None] = {
     "none": None,
     "pii": "pii-vision",

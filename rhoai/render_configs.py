@@ -31,7 +31,7 @@ POLICIES: dict[str, tuple[Path, str]] = {
 
 # config id (also the ConfigMap suffix and the `guardrails.config_id` clients send) -> policies
 CONFIGS: dict[str, list[str]] = {
-    "passthrough": [],
+    "no-rails": [],
     "pii-vision": ["pii"],
     "injection-vision": ["injection"],
     "pii-and-injection": ["pii", "injection"],
@@ -88,7 +88,7 @@ def build_config(config_id: str, model: str, base_url: str, api_key_env: str) ->
                 prompts.append({**prompt, "task": f"{JUDGE_TASK} $model={judge}"})
             elif prompt["task"] == "general":
                 general = prompt
-    if general is None:  # passthrough: reuse the image-preserving `general` prompt
+    if general is None:  # no-rails: reuse the image-preserving `general` prompt
         general = next(p for p in _load_prompts(POLICIES["pii"][0]) if p["task"] == "general")
     prompts.append(general)
 
