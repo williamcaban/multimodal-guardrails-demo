@@ -2,7 +2,7 @@
 
 Things that silently break image handling or the guardrail verdicts in NeMo Guardrails with a
 vision model. Found with `nemoguardrails` 0.24.1 and Ollama 0.40.15 locally, and on a Red Hat
-OpenShift AI cluster with a vLLM-served Qwen3-VL-8B-Instruct. Back to the [README](../README.md).
+OpenShift AI (RHOAI) 3.6 EA2 cluster with a vLLM-served Qwen3-VL-8B-Instruct. Back to the [README](../README.md).
 
 1. **Keep the judge's user message a bare `"{{ user_input }}"`.** The library only
    preserves the image when the whole message is a single variable; embedding it

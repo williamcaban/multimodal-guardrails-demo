@@ -201,8 +201,8 @@ python rhoai/render_configs.py --configmaps --namespace mm-guardrails-demo \
 **Prerequisites**
 
 - Red Hat OpenShift AI with the TrustyAI component `Managed` and the `NemoGuardrails` CRD
-  installed: `oc get crd nemoguardrails.trustyai.opendatahub.io`. Tested on one RHOAI 3.x
-  early-access cluster; other versions are untested.
+  installed: `oc get crd nemoguardrails.trustyai.opendatahub.io`. Tested on a Red Hat OpenShift AI (RHOAI) 3.6 EA2 cluster;
+  other preview versions are untested.
 - A vision-capable model behind an OpenAI-compatible `/v1/chat/completions` endpoint that
   accepts `image_url` parts, **reachable from a pod in the demo namespace**, and its API key.
   Tested with `Qwen/Qwen3-VL-8B-Instruct` through MaaS. A model on another box (for example a
@@ -402,7 +402,7 @@ before the main model acts on them, whether or not that model would have complie
 
 ### On RHOAI (`Qwen/Qwen3-VL-8B-Instruct` as judge and target, both rails on)
 
-Measured through the UI API on an RHOAI 3.x early-access cluster, 2026-11-09:
+Measured through the UI API on an RHOAI 3.6 EA2 cluster, 2026-11-09:
 
 | group | result |
 |---|---|
