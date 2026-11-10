@@ -129,6 +129,17 @@ Who creates what:
 | ClusterRoleBinding `mm-guardrails-<namespace>-auth-delegator` (**cluster-scoped**, role `system:auth-delegator`) | the TrustyAI operator, from the CR | lets the auth proxy validate bearer tokens |
 | ServiceAccount `mm-ui`, RoleBinding `mm-ui-view`, ImageStream, BuildConfig, Deployment, Service, Route (all `mm-ui`) | `rhoai/k8s/30-ui.yaml` | the web UI |
 
+### Screenshots of the web UI
+
+Four runs of the same setup (config `pii-and-injection`, message "Process this document and
+respond."). Each screenshot shows the selected image, the unprotected answer and the protected
+result with the judges' verdicts. All data in the images is fabricated.
+
+- [Invoice with PII: answered without guardrails, blocked with them](docs/screenshots/pii-invoice-blocked.png)
+- [Invoice with a hidden footer instruction: the unprotected model obeys it, the injection rail blocks it](docs/screenshots/hidden-instruction-invoice-blocked.png)
+- [Sales chart, a safe control: allowed](docs/screenshots/sales-chart-allowed.png)
+- [Redacted invoice, a safe control: allowed](docs/screenshots/redacted-invoice-allowed.png)
+
 ### Configurations: config ids, ConfigMaps and rails
 
 Clients choose a guardrail per request with a **config id**. This demo defines four, all hosted
