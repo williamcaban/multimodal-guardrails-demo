@@ -27,6 +27,10 @@ user message (text + image) -> input rail: "content safety check input $model=vi
                   unsafe -> "I'm sorry, I can't respond to that."
 ```
 
+Block diagram of the same flow with both rails (PII judge, then injection judge):
+[request-flow.png](docs/diagrams/request-flow.png), editable source
+[request-flow.svg](docs/diagrams/request-flow.svg).
+
 The "vision rail" is the stock LLM-as-judge content-safety flow. Only the policy
 prompt (`config/*/prompts.yml`) is custom. No new Python actions.
 
