@@ -120,7 +120,7 @@ CATEGORY_LABELS: dict[str, str] = {
     "P7": "Photo ID or badge",
     "I1": "Override instructions",
     "I2": "Reveal system prompt",
-    "I3": "Unrelated task for the AI",
+    "I3": "Task for the AI inside the image",
     "I4": "Leak data, call tool, visit URL",
     "I5": "Fake system message",
 }
