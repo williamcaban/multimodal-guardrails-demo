@@ -1,4 +1,5 @@
-# AI review via the shared workflow in interplay-adversarial/.github (secret MAAS_API_KEY)
+# AI review via the shared workflow in interplay-adversarial/.github
+# (secret MAAS_API_KEY; variables PR_AGENT_MODEL and PR_AGENT_API_BASE)
 name: PR Agent
 on:
   pull_request:
@@ -27,8 +28,10 @@ jobs:
       contents: read
     uses: interplay-adversarial/.github/.github/workflows/pr-agent.yml@0eb03f96402c6b7497bce1ba4cc7fb4be2fbde2c   # shared workflow, bumped by Dependabot
     with:
-      # TEMP (2026-10-23): qwen38-27b backend down on TMM MaaS; using gemma4 until it recovers.
-      model: gemma4
-      api_base: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/gemma4/v1
+      # Set these as repository variables (Settings > Secrets and variables > Actions > Variables):
+      # the model name and the OpenAI-compatible base URL (ending in /v1) of the review model.
+      # Keeping them out of the file keeps a private endpoint out of a public repository.
+      model: ${{ vars.PR_AGENT_MODEL }}
+      api_base: ${{ vars.PR_AGENT_API_BASE }}
     secrets:
       MAAS_API_KEY: ${{ secrets.MAAS_API_KEY }}
