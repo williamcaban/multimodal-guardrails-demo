@@ -116,10 +116,31 @@ Small synthetic sets: a demo, not a benchmark. On RHOAI the 6 clean and redacted
 Details, misses and latency: [docs/results.md](docs/results.md) (images) and
 [docs/audio.md](docs/audio.md) (audio).
 
+## Use it with a coding agent
+
+[AGENTS.md](AGENTS.md) tells a coding agent what is in this repository, how to run it, and which
+values you must supply to replicate the demo in your own environment (cluster context, model
+endpoints and keys, namespace, GPU details). Point your agent at it:
+
+```bash
+git clone https://github.com/williamcaban/multimodal-guardrails-demo && cd multimodal-guardrails-demo
+claude        # Claude Code reads CLAUDE.md, which imports AGENTS.md
+opencode      # OpenCode reads AGENTS.md directly
+```
+
+Then ask, for example: *"Read AGENTS.md and deploy this demo to my OpenShift AI cluster with my
+models. Ask me for what you need and show me what you will change before you run it."* Any other
+agent that supports AGENTS.md works the same way; for one that does not, tell it to read the file first.
+
+Log in to the cluster yourself (`oc login`) and give the agent your keys through your environment
+or a git-ignored `.env`, not in the prompt. AGENTS.md makes it ask before it deploys to a cluster
+or deletes a namespace.
+
 ## Documentation
 
 | | |
 |---|---|
+| [AGENTS.md](AGENTS.md) | For coding agents: repo map, how to replicate the demo, what to customize, rules |
 | [docs/serving-models.md](docs/serving-models.md) | Serving the models: llama-server (local testing), DGX Spark, RHOAI with two GPUs |
 | [docs/rhoai.md](docs/rhoai.md) | The RHOAI deployment in detail: objects, configs, variables, reset, limits |
 | [docs/audio.md](docs/audio.md) | Audio guardrails: design, results, findings, caveats |
