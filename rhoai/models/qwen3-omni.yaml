@@ -1,0 +1,83 @@
+# Audio judge and target: Qwen3-Omni-30B-A3B-Instruct (bf16) served by vLLM on ONE GPU with
+# about 80 GB of memory (A100/H100 80GB class). See docs/serving-models.md for sizing.
+# Apply into the demo namespace (the namespace is not set here):
+#   oc -n mm-guardrails-demo apply -f rhoai/models/qwen3-omni.yaml
+# Needs the Secret qwen3-omni-key (key api-key), which deploy.sh also hands to NeMo.
+# The weights (about 70 GB) download from Hugging Face on the first start into the PVC below.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qwen3-omni-hf-cache
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 120Gi
+  # storageClassName: <your class>   # omit to use the cluster default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen3-omni
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qwen3-omni
+  template:
+    metadata:
+      labels:
+        app: qwen3-omni
+    spec:
+      # tolerations:            # uncomment if your GPU nodes are tainted
+      #   - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.34.0
+          args:
+            - Qwen/Qwen3-Omni-30B-A3B-Instruct
+            - --host=0.0.0.0
+            - --port=8000
+            - --served-model-name=qwen3-omni
+            - --max-model-len=32768
+            - --gpu-memory-utilization=0.90
+            - '--limit-mm-per-prompt={"audio":1,"image":4,"video":0}'
+          env:
+            - name: VLLM_API_KEY
+              valueFrom:
+                secretKeyRef: {name: qwen3-omni-key, key: api-key}
+            - {name: HOME, value: /tmp}
+            - {name: XDG_CACHE_HOME, value: /tmp/.cache}
+            - {name: HF_HOME, value: /hf-cache}
+          ports:
+            - {name: http, containerPort: 8000}
+          resources:
+            requests: {cpu: "4", memory: 32Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "16", memory: 64Gi, nvidia.com/gpu: "1"}
+          startupProbe:     # first start downloads about 70 GB: allow up to 60 minutes
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            failureThreshold: 360
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          volumeMounts:
+            - {name: hf-cache, mountPath: /hf-cache}
+            - {name: shm, mountPath: /dev/shm}
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim: {claimName: qwen3-omni-hf-cache}
+        - name: shm
+          emptyDir: {medium: Memory, sizeLimit: 8Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen3-omni
+spec:
+  selector:
+    app: qwen3-omni
+  ports:
+    - {name: http, port: 8000, targetPort: http}

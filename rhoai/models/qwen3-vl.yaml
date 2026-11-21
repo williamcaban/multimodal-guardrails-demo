@@ -1,0 +1,85 @@
+# Vision judge and target: Qwen3-VL-8B-Instruct served by vLLM on ONE GPU (24 GB or more).
+# Apply into the demo namespace (the namespace is not set here):
+#   oc -n mm-guardrails-demo apply -f rhoai/models/qwen3-vl.yaml
+# Needs the Secret qwen3-vl-8b-maas-key (key api-key), which deploy.sh also hands to NeMo.
+# The weights download from Hugging Face on the first start into the PVC below.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qwen3-vl-hf-cache
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 40Gi
+  # storageClassName: <your class>   # omit to use the cluster default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qwen3-vl
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # the GPU is released before the new pod starts
+  selector:
+    matchLabels:
+      app: qwen3-vl
+  template:
+    metadata:
+      labels:
+        app: qwen3-vl
+    spec:
+      # tolerations:            # uncomment if your GPU nodes are tainted
+      #   - {key: nvidia.com/gpu, operator: Exists, effect: NoSchedule}
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.34.0
+          args:
+            - Qwen/Qwen3-VL-8B-Instruct
+            - --host=0.0.0.0
+            - --port=8000
+            - --served-model-name=qwen3-vl-8b
+            - --max-model-len=32768
+            - --gpu-memory-utilization=0.90
+            - --dtype=bfloat16
+            - --limit-mm-per-prompt.image=4
+            - --limit-mm-per-prompt.video=0
+          env:
+            - name: VLLM_API_KEY
+              valueFrom:
+                secretKeyRef: {name: qwen3-vl-8b-maas-key, key: api-key}
+            # OpenShift runs the pod with a random user id: keep every cache writable.
+            - {name: HOME, value: /tmp}
+            - {name: XDG_CACHE_HOME, value: /tmp/.cache}
+            - {name: HF_HOME, value: /hf-cache}
+          ports:
+            - {name: http, containerPort: 8000}
+          resources:
+            requests: {cpu: "4", memory: 12Gi, nvidia.com/gpu: "1"}
+            limits: {cpu: "8", memory: 24Gi, nvidia.com/gpu: "1"}
+          startupProbe:     # first start downloads about 17 GB: allow up to 30 minutes
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            failureThreshold: 180
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+          volumeMounts:
+            - {name: hf-cache, mountPath: /hf-cache}
+            - {name: shm, mountPath: /dev/shm}
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim: {claimName: qwen3-vl-hf-cache}
+        - name: shm
+          emptyDir: {medium: Memory, sizeLimit: 2Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qwen3-vl
+spec:
+  selector:
+    app: qwen3-vl
+  ports:
+    - {name: http, port: 8000, targetPort: http}
