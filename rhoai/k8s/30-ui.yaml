@@ -73,6 +73,9 @@ spec:
               value: https://mm-guardrails.__NAMESPACE__.svc.cluster.local
             - name: MODEL_NAME
               value: qwen3-vl-8b
+            # "true" only when deploy.sh was given AUDIO_BASE_URL (adds the Audio tab).
+            - name: AUDIO_ENABLED
+              value: "__AUDIO_ENABLED__"
             # The demo model is shared and the Route is reachable from outside the cluster:
             # fixed sample images only, short prompts, capped output, global request cap.
             - name: ALLOW_UPLOAD

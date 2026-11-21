@@ -28,6 +28,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S"]
 "demo.py" = ["S"]
+"audio_demo.py" = ["S"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -47,11 +48,11 @@ pythonVersion = "3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["ui", "rhoai", "tests"]
+pythonpath = [".", "ui", "rhoai", "tests"]
 markers = ["live: needs a running NeMo Guardrails server (set NEMO_URL); skipped otherwise"]
 
 [tool.vulture]
-paths = ["ui", "rhoai", "tests", "demo.py", "make_samples.py"]
+paths = ["ui", "rhoai", "tests", "demo.py", "make_samples.py", "audio_demo.py", "make_audio_samples.py"]
 min_confidence = 80
 # `format` is the parameter name BaseHTTPRequestHandler.log_message uses; the override must match.
 ignore_names = ["format"]

@@ -27,7 +27,10 @@ class Settings:
     rate_limit_per_min: int = 30
     allow_upload: bool = False
     request_timeout_s: float = 180.0
+    audio_enabled: bool = False
+    audio_model_name: str = "qwen3-omni"
     samples_dir: Path = _PACKAGE_ROOT.parent / "samples"
+    audio_samples_dir: Path = _PACKAGE_ROOT.parent / "samples_audio"
     static_dir: Path = _PACKAGE_ROOT / "static"
 
     @classmethod
@@ -51,7 +54,10 @@ class Settings:
             rate_limit_per_min=int(e.get("RATE_LIMIT_PER_MIN", defaults.rate_limit_per_min)),
             allow_upload=e.get("ALLOW_UPLOAD", "false").lower() in _TRUE,
             request_timeout_s=float(e.get("REQUEST_TIMEOUT_S", defaults.request_timeout_s)),
+            audio_enabled=e.get("AUDIO_ENABLED", "false").lower() in _TRUE,
+            audio_model_name=e.get("AUDIO_MODEL_NAME", defaults.audio_model_name),
             samples_dir=Path(e.get("SAMPLES_DIR", str(defaults.samples_dir))),
+            audio_samples_dir=Path(e.get("AUDIO_SAMPLES_DIR", str(defaults.audio_samples_dir))),
             static_dir=Path(e.get("STATIC_DIR", str(defaults.static_dir))),
         )
 

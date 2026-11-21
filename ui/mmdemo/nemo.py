@@ -1,7 +1,7 @@
 """Client for the NeMo Guardrails ``/v1/chat/completions`` endpoint.
 
 The server is asked for ``guardrails.options.log`` so each response says which rails ran, whether
-one stopped the request, and what the vision judge answered.
+one stopped the request, and what the judge (vision or audio model) answered.
 """
 
 from __future__ import annotations
@@ -31,8 +31,16 @@ _CATEGORY_RE = re.compile(r"\b([A-Z]\d{1,2})\b")
 
 
 @dataclass(frozen=True)
+class Media:
+    """What goes with the prompt: an image (a data URL) or a WAV clip (base64)."""
+
+    kind: Literal["image", "audio"]
+    data: str
+
+
+@dataclass(frozen=True)
 class Verdict:
-    """One vision-judge decision, for example ``unsafe`` with categories ``P1, P3``."""
+    """One judge decision, for example ``unsafe`` with categories ``P1, P3``."""
 
     judge: str
     verdict: str
@@ -92,21 +100,23 @@ def interpret_response(config_id: str, body: dict[str, Any], latency_ms: int) ->
     return GuardResult(config_id, "blocked" if blocked else "allowed", answer, latency_ms, verdicts)
 
 
+def _part(media: Media) -> dict[str, Any]:
+    if media.kind == "audio":
+        return {"type": "input_audio", "input_audio": {"data": media.data, "format": "wav"}}
+    return {"type": "image_url", "image_url": {"url": media.data}}
+
+
 def build_request(
-    settings: Settings, config_id: str, prompt: str, image_url: str
+    settings: Settings, config_id: str, prompt: str, media: Media | str
 ) -> dict[str, Any]:
+    """One chat request. A plain string is an image data URL (the original, image-only form)."""
+    if isinstance(media, str):
+        media = Media("image", media)
+    model = settings.audio_model_name if media.kind == "audio" else settings.model_name
     return {
-        "model": settings.model_name,
+        "model": model,
         "max_tokens": settings.max_tokens,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ],
-            }
-        ],
+        "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}, _part(media)]}],
         "guardrails": {
             "config_id": config_id,
             "options": {"log": {"activated_rails": True, "llm_calls": True}},
@@ -124,9 +134,9 @@ def _read_token(token_file: str | None) -> str | None:
         return None
 
 
-def call_nemo(settings: Settings, config_id: str, prompt: str, image_url: str) -> GuardResult:
-    """Send one image request through a guardrail configuration."""
-    body = json.dumps(build_request(settings, config_id, prompt, image_url)).encode()
+def call_nemo(settings: Settings, config_id: str, prompt: str, media: Media | str) -> GuardResult:
+    """Send one image or audio request through a guardrail configuration."""
+    body = json.dumps(build_request(settings, config_id, prompt, media)).encode()
     headers = {"Content-Type": "application/json"}
     token = _read_token(settings.token_file)
     if token:

@@ -14,12 +14,14 @@ from typing import Any
 import pytest
 from helpers import ALLOWED_BODY, BLOCKED_BODY, base_settings
 from mmdemo.nemo import (
+    Media,
     Verdict,
     build_request,
     describe_failure,
     interpret_response,
     parse_verdict,
 )
+from mmdemo.settings import Settings
 
 JUDGE = "content_safety_check_input $model=vision_pii"
 
@@ -147,3 +149,19 @@ def test_missing_service_message_points_at_the_deploy_step() -> None:
     message = describe_failure(exc, base_settings("https://nemo.example"))
     assert "NemoGuardrails" in message
     assert "Errno" not in message  # no raw urllib text for an operator-facing error
+
+
+def test_build_request_audio_uses_input_audio_and_the_audio_model() -> None:
+    settings = Settings(nemo_url="https://nemo", audio_model_name="qwen3-omni")
+    body = build_request(settings, "pii-audio", "summarize", Media("audio", "QUJD"))
+    assert body["model"] == "qwen3-omni"
+    parts = body["messages"][0]["content"]
+    assert parts[0] == {"type": "text", "text": "summarize"}
+    assert parts[1] == {"type": "input_audio", "input_audio": {"data": "QUJD", "format": "wav"}}
+    assert body["guardrails"]["config_id"] == "pii-audio"
+
+
+def test_build_request_plain_string_is_still_an_image() -> None:
+    body = build_request(Settings(nemo_url="https://nemo"), "x", "p", "data:image/png;base64,AA")
+    assert body["messages"][0]["content"][1]["type"] == "image_url"
+    assert body["model"] == "qwen3-vl-8b"

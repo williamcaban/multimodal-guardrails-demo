@@ -158,6 +158,10 @@ main {
   font-size: 0.85rem;
 }
 
+.tile.audio {
+  padding: 8px;
+}
+
 .tile span {
   font-size: 0.75rem;
   color: var(--muted);
@@ -235,6 +239,54 @@ button#send:disabled {
 
 .preview {
   margin: 0;
+}
+
+.preview audio {
+  display: block;
+  width: 100%;
+}
+
+.preview audio[hidden] {
+  display: none;
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 0;
+  margin-top: 10px;
+}
+
+.tabs[hidden] {
+  display: none;
+}
+
+.tab {
+  padding: 6px 18px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.tab:last-child {
+  border-radius: 0 6px 6px 0;
+  border-left: 0;
+}
+
+.tab[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.tab[aria-pressed="true"]:last-child {
+  border-left: 2px solid var(--accent);
 }
 
 .zoom {

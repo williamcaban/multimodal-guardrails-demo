@@ -4,11 +4,17 @@ The judge prompts are read from ``config/<policy>_vision/prompts.yml`` so the po
 single source of truth shared with the local demo. Each policy gets its own judge model name
 (``vision_pii``, ``vision_injection``) so both rails can run in one configuration.
 
+Audio configurations (``*-audio``) are rendered only when ``--audio-base-url`` is given. They use
+``config/<policy>_audio/prompts.yml`` and their own model endpoint and API-key variable, because
+the audio model (Qwen3-Omni) is a different server from the vision model.
+
 Usage:
     python rhoai/render_configs.py --out /tmp/cfgs --model gemma3 \\
         --base-url http://localhost:11434/v1
     python rhoai/render_configs.py --configmaps --namespace mm-demo \\
         --base-url ... --model ... > cm.yaml
+    python rhoai/render_configs.py --configmaps --base-url ... --model ... \\
+        --audio-base-url http://omni-host:8001/v1 > cm.yaml    # adds the audio configs
 """
 
 from __future__ import annotations
@@ -27,6 +33,8 @@ JUDGE_TASK = "content_safety_check_input"
 POLICIES: dict[str, tuple[Path, str]] = {
     "pii": (ROOT / "config" / "pii_vision" / "prompts.yml", "vision_pii"),
     "injection": (ROOT / "config" / "injection_vision" / "prompts.yml", "vision_injection"),
+    "pii_audio": (ROOT / "config" / "pii_audio" / "prompts.yml", "audio_pii"),
+    "injection_audio": (ROOT / "config" / "injection_audio" / "prompts.yml", "audio_injection"),
 }
 
 # config id (also the ConfigMap suffix and the `guardrails.config_id` clients send) -> policies
@@ -35,6 +43,14 @@ CONFIGS: dict[str, list[str]] = {
     "pii-vision": ["pii"],
     "injection-vision": ["injection"],
     "pii-and-injection": ["pii", "injection"],
+}
+
+# Same idea for audio. Kept apart so the vision configurations stay exactly as they were.
+AUDIO_CONFIGS: dict[str, list[str]] = {
+    "no-rails-audio": [],
+    "pii-audio": ["pii_audio"],
+    "injection-audio": ["injection_audio"],
+    "pii-and-injection-audio": ["pii_audio", "injection_audio"],
 }
 
 
@@ -73,7 +89,7 @@ def model_entry(model_type: str, model: str, base_url: str, api_key_env: str) ->
 
 def build_config(config_id: str, model: str, base_url: str, api_key_env: str) -> dict[str, str]:
     """Return the files (name -> content) of one configuration directory."""
-    policies = CONFIGS[config_id]
+    policies = {**CONFIGS, **AUDIO_CONFIGS}[config_id]
     models = [model_entry("main", model, base_url, api_key_env)]
     flows: list[str] = []
     prompts: list[dict[str, Any]] = []
@@ -88,8 +104,9 @@ def build_config(config_id: str, model: str, base_url: str, api_key_env: str) ->
                 prompts.append({**prompt, "task": f"{JUDGE_TASK} $model={judge}"})
             elif prompt["task"] == "general":
                 general = prompt
-    if general is None:  # no-rails: reuse the image-preserving `general` prompt
-        general = next(p for p in _load_prompts(POLICIES["pii"][0]) if p["task"] == "general")
+    if general is None:  # no-rails: reuse the media-preserving `general` prompt
+        source = POLICIES["pii_audio" if config_id in AUDIO_CONFIGS else "pii"][0]
+        general = next(p for p in _load_prompts(source) if p["task"] == "general")
     prompts.append(general)
 
     config: dict[str, Any] = {"models": models}
@@ -123,6 +140,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-url", required=True, help="OpenAI-compatible URL ending in /v1")
     parser.add_argument("--model", required=True, help="served model name")
     parser.add_argument("--api-key-env", default="MODEL_API_KEY")
+    parser.add_argument("--audio-base-url", help="also render the *-audio configs for this /v1 URL")
+    parser.add_argument("--audio-model", default="qwen3-omni", help="audio model's served name")
+    parser.add_argument("--audio-api-key-env", default="AUDIO_MODEL_API_KEY")
     parser.add_argument("--out", type=Path, help="write one directory per config under this path")
     parser.add_argument("--configmaps", action="store_true", help="print ConfigMap manifests")
     parser.add_argument("--namespace", default="mm-guardrails-demo")
@@ -131,9 +151,16 @@ def main(argv: list[str] | None = None) -> int:
     if not args.out and not args.configmaps:
         parser.error("choose --out DIR and/or --configmaps")
 
+    backends = [(list(CONFIGS), args.model, args.base_url, args.api_key_env)]
+    if args.audio_base_url:
+        audio = (list(AUDIO_CONFIGS), args.audio_model, args.audio_base_url, args.audio_api_key_env)
+        backends.append(audio)
+
     docs: list[str] = []
-    for config_id in CONFIGS:
-        files = build_config(config_id, args.model, args.base_url, args.api_key_env)
+    for config_id, model, base_url, key_env in (
+        (cid, m, url, env) for ids, m, url, env in backends for cid in ids
+    ):
+        files = build_config(config_id, model, base_url, key_env)
         if args.out:
             target = args.out / config_id
             target.mkdir(parents=True, exist_ok=True)

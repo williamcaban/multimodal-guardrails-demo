@@ -8,7 +8,7 @@ from collections.abc import Callable
 from typing import Any
 
 from helpers import ROOT, StubNemo, base_settings, http
-from mmdemo.samples import SAMPLES
+from mmdemo.samples import AUDIO_SAMPLES, SAMPLES
 from mmdemo.settings import Settings
 
 StartUi = Callable[[Settings], str]
@@ -167,3 +167,95 @@ def test_unreachable_guardrail_service_is_reported_not_crashed(start_ui: StartUi
     assert data["unprotected"]["status"] == "error"
     assert data["protected"]["status"] == "error"
     assert data["protected"]["error"]
+
+
+AUDIO_PROMPT = "Summarize this recording in one sentence."
+
+
+def run_audio(base: str, **body: Any) -> tuple[int, dict[str, Any]]:
+    body = {"prompt": AUDIO_PROMPT, "modality": "audio", **body}
+    status, _, raw = http("POST", f"{base}/api/run", body)
+    return status, json.loads(raw)
+
+
+def test_audio_catalog_matches_the_clips_and_the_audio_configs() -> None:
+    for sample in AUDIO_SAMPLES:
+        assert (ROOT / "samples_audio" / sample.file).is_file(), sample.file
+    assert {s.group for s in AUDIO_SAMPLES} == {"pii", "injection", "safe"}
+    assert len({s.id for s in AUDIO_SAMPLES}) == len(AUDIO_SAMPLES)
+
+
+def test_audio_is_off_unless_enabled(stub_nemo: StubNemo, start_ui: StartUi) -> None:
+    base = start_ui(base_settings(stub_nemo.url))
+    assert json.loads(http("GET", f"{base}/api/config")[2])["audio_enabled"] is False
+    assert json.loads(http("GET", f"{base}/api/audio-samples")[2]) == []
+    assert http("GET", f"{base}/audio/pii_ssn.wav")[0] == 404
+    assert run_audio(base, sample="pii_ssn", mode="pii")[0] == 400
+    assert stub_nemo.requests == []
+
+
+def test_audio_catalog_clip_and_csp_when_enabled(stub_nemo: StubNemo, start_ui: StartUi) -> None:
+    base = start_ui(base_settings(stub_nemo.url, audio_enabled=True))
+    config = json.loads(http("GET", f"{base}/api/config")[2])
+    assert config["audio_enabled"] is True
+    assert config["audio_model"] == "qwen3-omni"
+    assert config["audio_categories"]["I4"]
+    listed = json.loads(http("GET", f"{base}/api/audio-samples")[2])
+    assert [s["id"] for s in listed] == [s.id for s in AUDIO_SAMPLES]
+
+    status, headers, body = http("GET", f"{base}/audio/pii_ssn.wav")
+    assert (status, headers["Content-Type"]) == (200, "audio/wav")
+    assert body[:4] == b"RIFF"
+    assert "media-src 'self'" in headers["Content-Security-Policy"]
+    for bad in ("/audio/../pyproject.toml", "/audio/%2e%2e/pyproject.toml", "/audio/nope.wav"):
+        assert http("GET", f"{base}{bad}")[0] == 404, bad
+
+
+def test_audio_run_sends_input_audio_to_the_audio_configs(
+    stub_nemo: StubNemo, start_ui: StartUi
+) -> None:
+    base = start_ui(base_settings(stub_nemo.url, audio_enabled=True))
+    expected = {
+        "pii": "pii-audio",
+        "injection": "injection-audio",
+        "both": "pii-and-injection-audio",
+    }
+    for mode, config_id in expected.items():
+        stub_nemo.requests.clear()
+        status, data = run_audio(base, sample="pii_ssn", mode=mode)
+        assert status == 200
+        assert (data["unprotected"]["status"], data["protected"]["status"]) == (
+            "allowed",
+            "blocked",
+        )
+        by_config = {r["body"]["guardrails"]["config_id"]: r["body"] for r in stub_nemo.requests}
+        assert set(by_config) == {"no-rails-audio", config_id}
+        sent = by_config[config_id]
+        assert sent["model"] == "qwen3-omni"
+        part = sent["messages"][0]["content"][1]
+        assert part["type"] == "input_audio"
+        assert part["input_audio"]["format"] == "wav"
+        assert base64.b64decode(part["input_audio"]["data"])[:4] == b"RIFF"
+
+
+def test_audio_rejects_uploads_unknown_samples_and_image_samples(
+    stub_nemo: StubNemo, start_ui: StartUi
+) -> None:
+    base = start_ui(base_settings(stub_nemo.url, audio_enabled=True, allow_upload=True))
+    tiny = "data:image/png;base64," + base64.b64encode(b"\x89PNG....").decode()
+    assert run_audio(base, image=tiny, mode="pii")[0] == 400  # clips only, no uploads
+    assert run_audio(base, sample="nope", mode="pii")[0] == 400
+    assert run_audio(base, sample="invoice_pii", mode="pii")[0] == 400  # an image id
+    assert run_audio(base, sample="pii_ssn", mode="bogus")[0] == 400
+    status, _, _ = http("POST", f"{base}/api/run", {"prompt": "x", "modality": "video"})
+    assert status == 400
+    assert stub_nemo.requests == []
+
+
+def test_modality_defaults_to_image(stub_nemo: StubNemo, start_ui: StartUi) -> None:
+    base = start_ui(base_settings(stub_nemo.url, audio_enabled=True))
+    assert run(base, sample="chart_clean", mode="pii")[0] == 200
+    assert {r["body"]["guardrails"]["config_id"] for r in stub_nemo.requests} == {
+        "no-rails",
+        "pii-vision",
+    }
