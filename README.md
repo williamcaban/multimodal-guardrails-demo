@@ -134,8 +134,8 @@ Details, misses and latency: [docs/results.md](docs/results.md) (images) and
 - Thinking models with a small `max_tokens` fail closed, so blocks look right for the wrong reason.
 - Input rails only. VLM judges are probabilistic: for real PII enforcement add deterministic
   detection (Presidio, regex) on top, and an output rail.
-- Synthetic images and speech are easier than real ones; behavior on real photos and noisy audio
-  is untested.
+- Synthetic images and speech are easier than real ones. Test the rails on your own photos,
+  recordings and policies, and tune the prompts in `config/*/prompts.yml` for your scenario.
 
 ## License
 
