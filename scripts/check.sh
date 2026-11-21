@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BIN=.venv/bin
-TARGETS=(ui rhoai tests demo.py make_samples.py)
+TARGETS=(ui rhoai tests demo.py make_samples.py audio_demo.py make_audio_samples.py)
 
 echo "== ruff";    "$BIN/ruff" check .
 echo "== black";   "$BIN/black" --check --quiet .

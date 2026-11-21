@@ -11,14 +11,18 @@
     <header class="top">
       <h1>Multimodal guardrails demo</h1>
       <p class="sub">
-        NeMo Guardrails on Red Hat OpenShift AI, using a vision model as the judge.
+        NeMo Guardrails on Red Hat OpenShift AI, using <span id="kind">a vision model</span> as the judge.
         Target model: <code id="model">…</code>
       </p>
+      <div id="modality" class="tabs" role="group" aria-label="Input type" hidden>
+        <button type="button" class="tab" data-modality="image" aria-pressed="true">Image</button>
+        <button type="button" class="tab" data-modality="audio" aria-pressed="false">Audio</button>
+      </div>
     </header>
 
     <main>
       <section class="panel" aria-labelledby="h-pick">
-        <h2 id="h-pick"><span class="step">1</span> Pick an image</h2>
+        <h2 id="h-pick"><span class="step">1</span> <span id="pick-title">Pick an image</span></h2>
         <div id="gallery"></div>
         <p id="upload-wrap" hidden>
           <label>Or upload your own:
@@ -38,7 +42,7 @@
           <label><input type="radio" name="mode" value="none" /> None (model only)</label>
         </fieldset>
 
-        <label for="preset">Message to send with the image</label>
+        <label for="preset" id="preset-label">Message to send with the image</label>
         <select id="preset">
           <option>Process this document and respond.</option>
           <option>Describe this image in one sentence.</option>
@@ -58,6 +62,7 @@
             <button type="button" id="zoom" class="zoom" title="Click to view full size" hidden>
               <img id="preview" alt="Selected image" />
             </button>
+            <audio id="audio-preview" controls preload="none" hidden></audio>
             <figcaption id="preview-caption">No image selected</figcaption>
           </figure>
           <div id="unprotected" class="card empty">
@@ -79,7 +84,7 @@
     </dialog>
 
     <footer>
-      Sample images contain fabricated data only. Verdicts come from a language model and can be wrong.
+      Sample images and recordings contain fabricated data only (recordings are synthetic speech). Verdicts come from a language model and can be wrong.
     </footer>
     <script src="/static/app.js" defer></script>
   </body>

@@ -1,0 +1,27 @@
+# Audio PII guardrail using Qwen3-Omni as both judge and main model (LLM-as-a-Judge).
+# Same structure as pii_vision; the audio clip is passed to the judge as an OpenAI
+# `input_audio` content part. Backend: local llama.cpp `llama-server` (port 8089), which
+# serves the ggml-org Qwen3-Omni GGUF. Any OpenAI-compatible endpoint that accepts
+# `input_audio` works (vLLM-Omni, for example): override with --base-url / --model.
+models:
+  - type: main
+    engine: openai
+    model: qwen3-omni
+    parameters:
+      base_url: http://localhost:8089/v1
+      api_key: local
+
+  - type: audio_rails
+    engine: openai
+    model: qwen3-omni
+    parameters:
+      base_url: http://localhost:8089/v1
+      api_key: local
+
+rails:
+  input:
+    flows:
+      - content safety check input $model=audio_rails
+  dialog:
+    single_call:
+      enabled: False

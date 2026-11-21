@@ -1,8 +1,8 @@
-"""HTTP server: serves the demo page and runs one image through NeMo Guardrails twice.
+"""HTTP server: serves the demo page and runs one image or audio clip through NeMo Guardrails twice.
 
 For each request it calls the ``no-rails`` configuration (no rails, the "unprotected" model) and
 the configuration for the selected guardrail mode, in parallel, so the page can show them side by
-side.
+side. Audio is optional (``AUDIO_ENABLED``) and uses the ``*-audio`` configurations.
 """
 
 from __future__ import annotations
@@ -20,19 +20,25 @@ from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-from mmdemo.nemo import GuardResult, call_nemo
+from mmdemo.nemo import GuardResult, Media, call_nemo
 from mmdemo.samples import (
+    AUDIO_CATEGORY_LABELS,
+    AUDIO_MODES,
+    AUDIO_SAMPLES,
+    AUDIO_SAMPLES_BY_ID,
     CATEGORY_LABELS,
     MODES,
     RAIL_LABELS,
     SAMPLES,
     SAMPLES_BY_ID,
+    UNPROTECTED_AUDIO_CONFIG,
     UNPROTECTED_CONFIG,
+    audio_base64,
     sample_data_url,
 )
 from mmdemo.settings import Settings
 
-NemoCall = Callable[[Settings, str, str, str], GuardResult]
+NemoCall = Callable[[Settings, str, str, Media], GuardResult]
 
 STATIC_FILES = {
     "index.html": "text/html; charset=utf-8",
@@ -43,7 +49,8 @@ _UPLOAD_RE = re.compile(r"^data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$"
 # No inline script or style, nothing loaded from other origins.
 _CSP = (
     "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
-    "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    "media-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; "
+    "frame-ancestors 'none'"
 )
 
 
@@ -79,11 +86,11 @@ class RateLimiter:
 class RunRequest:
     prompt: str
     mode: str
-    image_url: str
+    media: Media
 
 
 def parse_run_request(settings: Settings, raw: bytes) -> RunRequest:
-    """Validate the JSON body of ``POST /api/run`` and resolve the image to a data URL."""
+    """Validate the JSON body of ``POST /api/run`` and resolve the image or clip."""
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -96,9 +103,14 @@ def parse_run_request(settings: Settings, raw: bytes) -> RunRequest:
         raise RequestError(400, "prompt is required")
     if len(prompt) > settings.max_prompt_chars:
         raise RequestError(400, f"prompt is limited to {settings.max_prompt_chars} characters")
+    modality = data.get("modality", "image")
+    if modality not in ("image", "audio"):
+        raise RequestError(400, "modality must be image or audio")
     mode = data.get("mode")
     if not isinstance(mode, str) or mode not in MODES:
         raise RequestError(400, f"mode must be one of {sorted(MODES)}")
+    if modality == "audio":
+        return RunRequest(prompt.strip(), mode, _audio_media(settings, data))
 
     sample_id, upload = data.get("sample"), data.get("image")
     if isinstance(sample_id, str):
@@ -115,7 +127,21 @@ def parse_run_request(settings: Settings, raw: bytes) -> RunRequest:
         image_url = _validate_upload(settings, upload)
     else:
         raise RequestError(400, "provide either sample or image")
-    return RunRequest(prompt.strip(), mode, image_url)
+    return RunRequest(prompt.strip(), mode, Media("image", image_url))
+
+
+def _audio_media(settings: Settings, data: dict[str, Any]) -> Media:
+    """Resolve a built-in clip. Audio has no uploads, so no arbitrary files reach the model."""
+    if not settings.audio_enabled:
+        raise RequestError(400, "audio is not enabled on this deployment")
+    sample_id = data.get("sample")
+    sample = AUDIO_SAMPLES_BY_ID.get(sample_id) if isinstance(sample_id, str) else None
+    if sample is None:
+        raise RequestError(400, "choose one of the built-in recordings (sample)")
+    try:
+        return Media("audio", audio_base64(settings.audio_samples_dir, sample))
+    except OSError as exc:
+        raise RequestError(500, "audio clip is missing on the server") from exc
 
 
 def _validate_upload(settings: Settings, data_url: str) -> str:
@@ -148,17 +174,22 @@ class App:
             "max_upload_bytes": s.max_upload_bytes,
             "categories": CATEGORY_LABELS,
             "rails": RAIL_LABELS,
+            "audio_enabled": s.audio_enabled,
+            "audio_model": s.audio_model_name,
+            "audio_categories": AUDIO_CATEGORY_LABELS,
         }
 
     def run(self, request: RunRequest) -> dict[str, Any]:
-        protected_config = MODES[request.mode]
+        audio = request.media.kind == "audio"
+        protected_config = (AUDIO_MODES if audio else MODES)[request.mode]
+        unprotected_config = UNPROTECTED_AUDIO_CONFIG if audio else UNPROTECTED_CONFIG
         with ThreadPoolExecutor(max_workers=2) as pool:
             unprotected = pool.submit(
-                self.nemo, self.settings, UNPROTECTED_CONFIG, request.prompt, request.image_url
+                self.nemo, self.settings, unprotected_config, request.prompt, request.media
             )
             protected = (
                 pool.submit(
-                    self.nemo, self.settings, protected_config, request.prompt, request.image_url
+                    self.nemo, self.settings, protected_config, request.prompt, request.media
                 )
                 if protected_config
                 else None
@@ -181,12 +212,17 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 self._json(200, app.public_config())
             elif path == "/api/samples":
                 self._json(200, [vars(s) for s in SAMPLES])
+            elif path == "/api/audio-samples":
+                clips = AUDIO_SAMPLES if app.settings.audio_enabled else ()
+                self._json(200, [vars(s) for s in clips])
             elif path == "/":
                 self._static("index.html")
             elif path.startswith("/static/"):
                 self._static(path.removeprefix("/static/"))
             elif path.startswith("/samples/"):
                 self._sample(path.removeprefix("/samples/"))
+            elif path.startswith("/audio/"):
+                self._audio(path.removeprefix("/audio/"))
             else:
                 self._json(404, {"error": "not found"})
 
@@ -230,6 +266,12 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 self._json(404, {"error": "not found"})
                 return
             self._send(200, (app.settings.samples_dir / name).read_bytes(), "image/png")
+
+        def _audio(self, name: str) -> None:
+            if not app.settings.audio_enabled or not any(s.file == name for s in AUDIO_SAMPLES):
+                self._json(404, {"error": "not found"})
+                return
+            self._send(200, (app.settings.audio_samples_dir / name).read_bytes(), "audio/wav")
 
         def _json(self, status: int, body: Any, extra: dict[str, str] | None = None) -> None:
             self._send(status, json.dumps(body).encode(), "application/json", extra, cache=False)

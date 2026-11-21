@@ -71,6 +71,7 @@ def base_settings(nemo_url: str, **overrides: Any) -> Settings:
     settings = Settings(
         nemo_url=nemo_url,
         samples_dir=ROOT / "samples",
+        audio_samples_dir=ROOT / "samples_audio",
         static_dir=ROOT / "ui" / "static",
         request_timeout_s=10,
     )
