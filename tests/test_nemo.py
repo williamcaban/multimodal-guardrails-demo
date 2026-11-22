@@ -134,6 +134,16 @@ def test_build_request_shape() -> None:
             "rejected the UI's credentials (HTTP 401)",
         ),
         (
+            urllib.error.HTTPError("u", 403, "Forbidden", Message(), io.BytesIO(b"Forbidden")),
+            "rejected the UI's credentials (HTTP 403)",
+        ),
+        (
+            urllib.error.HTTPError(
+                "u", 403, "Forbidden", Message(), io.BytesIO(b'{"detail": "Error invoking LLM"}')
+            ),
+            "model rejected its API key (HTTP 403)",
+        ),
+        (
             urllib.error.HTTPError("u", 500, "Boom", Message(), io.BytesIO(b"upstream down")),
             "HTTP 500: upstream down",
         ),
