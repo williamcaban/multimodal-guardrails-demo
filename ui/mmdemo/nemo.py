@@ -167,12 +167,20 @@ def describe_failure(exc: Exception, settings: Settings) -> str:
     """Turn a transport failure into a message that says what to check."""
     host = urllib.parse.urlparse(settings.nemo_url).hostname or settings.nemo_url
     if isinstance(exc, urllib.error.HTTPError):
-        if exc.code in (401, 403):
+        detail = exc.read().decode(errors="replace")[:200]
+        if exc.code in (401, 403) and not _is_json(detail):
+            # The auth proxy in front of NeMo answers in plain text.
             return (
                 f"The guardrail service rejected the UI's credentials (HTTP {exc.code}). "
                 "Check that the mm-ui ServiceAccount has the view role in this namespace."
             )
-        detail = exc.read().decode(errors="replace")[:200]
+        if exc.code in (401, 403):
+            # NeMo itself answered: the model behind it refused its API key.
+            return (
+                f"The guardrail service reached the model, but the model rejected its API key "
+                f"(HTTP {exc.code}). Check the model key Secret and that the key is bound to "
+                "this model's subscription; a pod restart is needed to reload it."
+            )
         return f"The guardrail service returned HTTP {exc.code}: {detail}"
     reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
     if isinstance(reason, socket.gaierror):
@@ -191,6 +199,14 @@ def describe_failure(exc: Exception, settings: Settings) -> str:
     if isinstance(exc, json.JSONDecodeError):
         return "The guardrail service returned a response that is not JSON."
     return f"Could not reach the guardrail service ({type(reason).__name__}: {reason})"[:300]
+
+
+def _is_json(text: str) -> bool:
+    try:
+        json.loads(text)
+    except json.JSONDecodeError:
+        return False
+    return True
 
 
 def _error(config_id: str, started: float, message: str) -> GuardResult:
